@@ -3,3 +3,6 @@
 This project's main & final objective is to recreate mandelbrot's fractal using rust. This project will also contain basic understandings and exercices of the rust language. 
 
 The exercices will be located in /src/bin and you can run them using `cargo run --bin exercice_name`
+
+
+16-09-2026 : adding the num_complex crate
