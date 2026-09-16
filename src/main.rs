@@ -1,37 +1,37 @@
 use num_complex::Complex;
-use std::sync::Arc;
-use std::thread;
+// use std::sync::Arc;
+// use std::thread;
 use image::{ImageBuffer, Rgb};
 
 fn main(){
-    // Création d'un nombre complexe par un complexe z initial 
-    // et un nombre complexe c représentant un pixel
-    // test_iter_mandlebrot_monothread(Complex::new(-0.5,0.6009), 1000);
-    let width = 640;
-    let height = 480;
+    let width = 1920;
+    let height = 1080;
     let nmax = 100;
 
-    let min_real = -2.5;
-    let max_real = 2.5;
 
-    let min_imaginary = -2.5;
-    let max_imaginary = 2.5;
+    // zone du domaine complexe à visualiser. 
+    // Plus la zone est petite plus on regarde la fractale en profondeur
+    // valeurs à comparer : 1.0, puis 2.0
+    let min_real = -1.0;
+    let max_real = 1.0;
+    let min_imaginary = -1.0;
+    let max_imaginary = 1.0;
 
     let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
 
     for x in 0..width {
         for y in 0..height {
-            // Transformation pixel -> plan complexe
+
+            // Transformation pixel -> plan complexe : position finale=début+pourcentage de progression×taille de l’intervalle
             let real = min_real + (x as f64 / width as f64) * (max_real - min_real);
-
-            let imaginary = max_imaginary
-                - (y as f64 / height as f64)
-                    * (max_imaginary - min_imaginary);
-
+            let imaginary = max_imaginary - (y as f64 / height as f64) * (max_imaginary - min_imaginary);
+            
+            // création du nombre complexe c (représente un pixel dans le plan complexe à chaque fois)
             let c = Complex::new(real, imaginary);
-
+            // On vérifie si le pixel appartient à mandelbrot
             let inside = is_in_mandlebrot_monot(c, nmax);
-
+            
+            // on colorie le pixel si il est dedans.
             let pixel = if inside {
                 Rgb([0, 0, 0])
             } else {
@@ -42,39 +42,14 @@ fn main(){
         }
     }
 
-    image.save("mandelbrot.png").unwrap();
-}
-
-
-
-// utilise simplement le main thread pour l'équation de mandlebrot
-fn test_iter_mandlebrot_monothread(c: Complex<f64>, nmax:i32){
-
-    let mut z = Complex::new(0.0, 0.0);
-    // l'équation à tester est, pour chaque itération de n,
-    // si le module de z_n est plus grand que 2.
-    //Création d'un monothread de calcul :
-
-    println!("z initial : {z}");
-
-    for n in 0..nmax {
-
-        z = z * z + c;    
-
-        //vérifie si |z| est plus grande que 2 :
-        if z.norm() > 2.0 {
-            return println!("Ce point diverge après {n} itérations ! module : {:?}", z.norm());
-
-        }
-
-    }
-    return println!("ce point ne diverge pas après {nmax} itérations. Dernier module de z : {:?}", z.norm());
-        
-
+    image.save("mandelbrot5.png").unwrap();
 }
 
 //monothread
 fn is_in_mandlebrot_monot(c: Complex<f64>, nmax:i32) -> bool {
+
+    // Création d'un nombre complexe par un complexe z initial 
+    // et un nombre complexe c représentant un pixel
     let mut z = Complex::new(0.0,0.0);
     for _n in 1..=nmax{
         //équation de mandelbrot
@@ -87,8 +62,4 @@ fn is_in_mandlebrot_monot(c: Complex<f64>, nmax:i32) -> bool {
     }
 
     return true;
-}
-
-fn draw_mandlebrot(){
-
 }
