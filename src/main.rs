@@ -1,5 +1,9 @@
 use num_complex::Complex;
 use rust_mandelbrot_set_representation::*;
+use std::sync::Arc;
+
+use pixels::{Pixels, SurfaceTexture};
+
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -7,25 +11,43 @@ use winit::{
     window::Window,
 };
 
+const WIDTH: u32 = 800;
+const HEIGHT: u32 = 600;
+
 struct App {
-    window: Option<Window>,
+    window: Option<Arc<Window>>,
+    pixels: Option<Pixels<'static>>,
 }
 
 impl App {
     fn new() -> Self {
         Self {
             window: None,
+            pixels: None,
         }
     }
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = event_loop
-            .create_window(Window::default_attributes())
-            .unwrap();
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    Window::default_attributes()
+                        .with_title("Rust Mandelbrot")
+                        .with_inner_size(winit::dpi::LogicalSize::new(WIDTH, HEIGHT)),
+                )
+                .unwrap(),
+        );
+
+        let surface_texture = SurfaceTexture::new(WIDTH, HEIGHT, window.clone());
+
+        let pixels = Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap();
 
         self.window = Some(window);
+        self.pixels = Some(pixels);
+
+        self.window.as_ref().unwrap().request_redraw();
     }
 
     fn window_event(
@@ -37,6 +59,21 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
+            }
+
+            WindowEvent::RedrawRequested => {
+                let pixels = self.pixels.as_mut().unwrap();
+
+                let frame = pixels.frame_mut();
+
+                for pixel in frame.chunks_exact_mut(4) {
+                    pixel[0] = 255; // Rouge
+                    pixel[1] = 0;   // Vert
+                    pixel[2] = 0;   // Bleu
+                    pixel[3] = 255; // Alpha
+                }
+
+                pixels.render().unwrap();
             }
 
             _ => {}
