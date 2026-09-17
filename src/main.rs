@@ -11,14 +11,17 @@ use winit::{
     window::Window,
 };
 
+//initial size of my window
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 600;
 
 struct App {
+    // here I create a window. The Arc option allows multiple accessing for ... ? 
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
 }
 
+// The constructor of our App structure. 
 impl App {
     fn new() -> Self {
         Self {
@@ -28,7 +31,13 @@ impl App {
     }
 }
 
+
+// A method (implementation in rust) that we create for our App
 impl ApplicationHandler for App {
+
+    // resumed is an ApplicationHandler's method. Used to render
+    // when a graphic app is created (desktop), or resumed back
+    // on it (going back to the app on android).
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop
@@ -40,27 +49,37 @@ impl ApplicationHandler for App {
                 .unwrap(),
         );
 
+        //what's a surface texture ? Is it to put interactivity on the window we created ? Is it a second layer above window ?
         let surface_texture = SurfaceTexture::new(WIDTH, HEIGHT, window.clone());
 
+        // drawing with pixels
         let pixels = Pixels::new(WIDTH, HEIGHT, surface_texture).unwrap();
 
+        // we fill our fields with what we just created.
         self.window = Some(window);
         self.pixels = Some(pixels);
+        
 
+        // are we are accessing the content of our window option (which is a window object)
+        // to use a redraw method on it.
         self.window.as_ref().unwrap().request_redraw();
     }
 
+
+	// just copy this. Its to look for window (and potentially system) events
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
+        // when we receive a matching event from winit's WindowEvent events.
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }
 
+            // A pixel has four values (RGBA)
             WindowEvent::RedrawRequested => {
                 let pixels = self.pixels.as_mut().unwrap();
 
@@ -73,19 +92,24 @@ impl ApplicationHandler for App {
                     pixel[3] = 255; // Alpha
                 }
 
+                // now we draw the pixel buffers on the window
                 pixels.render().unwrap();
             }
-
+            
+            // every other kind of events gets no triggers.
             _ => {}
         }
     }
 }
 
 fn main() {
+    // main loop that detects events for our window
     let event_loop = EventLoop::new().unwrap();
 
+    //our app function that we just created above.
     let mut app = App::new();
 
+    // we run the app here I guess ?
     event_loop.run_app(&mut app).unwrap();
 }
 
