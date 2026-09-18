@@ -3,20 +3,21 @@ use rust_mandelbrot_set_representation::*;
 use std::sync::Arc;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-application::ApplicationHandler,
-event::WindowEvent,
-event_loop::{ActiveEventLoop, EventLoop},
-window::Window,
+application::ApplicationHandler, event::{MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, window::Window,
 };
   
 //initial size of my window
-const WIDTH: u32 = 1920;
-const HEIGHT: u32 = 1080;
+const WIDTH: u32 = 800;
+const HEIGHT: u32 = 600;
   
 struct App {
 // here I create a window. The Arc option allows multiple accessing for ... ?
 window: Option<Arc<Window>>,
 pixels: Option<Pixels<'static>>,
+min_real: f64,
+max_real: f64,
+min_imaginary: f64,
+max_imaginary: f64,
 }
  
 // The constructor of our App structure.
@@ -24,6 +25,10 @@ impl App {fn new() -> Self {
 Self {
 window: None,
 pixels: None,
+min_real: -3.0,
+max_real: 3.0,
+min_imaginary: -2.0,
+max_imaginary: 2.0,
 }
 }}
   
@@ -75,9 +80,34 @@ impl ApplicationHandler for App {
 		WindowEvent::RedrawRequested => {
 		let pixels = self.pixels.as_mut().unwrap();
 		let frame = pixels.frame_mut();
-		draw_mandelbrot(frame);
+		draw_mandelbrot(frame,
+		self.min_real,
+        self.max_real,
+        self.min_imaginary,
+        self.max_imaginary,);
 		// now we draw the pixel buffers on the window
 		pixels.render().unwrap();
+		}
+
+		WindowEvent::MouseWheel { delta, .. } => {
+			let zoom_factor = match delta {
+				MouseScrollDelta::LineDelta(_, y) => 1.0 + 0.1 * y as f64,
+				MouseScrollDelta::PixelDelta(d) => 1.0 + 0.001 * d.y as f64,
+				
+			};
+
+			// Zoom around the center of the current viewport
+			let center_real = (self.min_real + self.max_real) / 2.0;
+			let center_imag = (self.min_imaginary + self.max_imaginary) / 2.0;
+			let half_w = (self.max_real - self.min_real) / 2.0 * zoom_factor;
+			let half_h = (self.max_imaginary - self.min_imaginary) / 2.0 * zoom_factor;
+
+			self.min_real = center_real - half_w;
+			self.max_real = center_real + half_w;
+			self.min_imaginary = center_imag - half_h;
+			self.max_imaginary = center_imag + half_h;
+
+			self.window.as_ref().unwrap().request_redraw();
 		}
 		// every other kind of events gets no triggers.
 		_ => {}
@@ -86,12 +116,11 @@ impl ApplicationHandler for App {
 }
 
 
-fn draw_mandelbrot(frame: &mut [u8]){
-    let min_real = -3.0;
-    let max_real = 3.0;
-    let min_imaginary = -2.0;
-    let max_imaginary = 2.0;
-
+fn draw_mandelbrot(frame: &mut [u8],min_real: f64,
+    max_real: f64,
+    min_imaginary: f64,
+    max_imaginary: f64,){
+    
     for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
 
             let x_pos = (i % WIDTH as usize) as f32;
