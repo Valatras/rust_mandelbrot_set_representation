@@ -3,7 +3,7 @@ use rust_mandelbrot_set_representation::*;
 use std::sync::Arc;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-application::ApplicationHandler, event::{MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, window::Window,
+application::ApplicationHandler, event::{ElementState::Pressed, KeyEvent, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode::{ArrowDown, ArrowUp}, PhysicalKey}, window::Window,
 };
   
 //initial size of my window
@@ -18,6 +18,7 @@ min_real: f64,
 max_real: f64,
 min_imaginary: f64,
 max_imaginary: f64,
+nmax: i32,
 }
  
 // The constructor of our App structure.
@@ -29,6 +30,7 @@ min_real: -3.0,
 max_real: 3.0,
 min_imaginary: -2.0,
 max_imaginary: 2.0,
+nmax: 30,
 }
 }}
   
@@ -84,7 +86,9 @@ impl ApplicationHandler for App {
 		self.min_real,
         self.max_real,
         self.min_imaginary,
-        self.max_imaginary,);
+        self.max_imaginary,
+		self.nmax
+		);
 		// now we draw the pixel buffers on the window
 		pixels.render().unwrap();
 		}
@@ -109,6 +113,25 @@ impl ApplicationHandler for App {
 
 			self.window.as_ref().unwrap().request_redraw();
 		}
+		
+		WindowEvent::KeyboardInput { device_id, event: KeyEvent { physical_key:PhysicalKey::Code(ArrowUp), text, state:Pressed, repeat:false, .. }, is_synthetic:false } => {
+			// In your update (e.g. about_to_wait or redraw):
+			
+			self.nmax+= 10;
+			println!("{:?}",self.nmax);
+			
+			self.window.as_ref().unwrap().request_redraw();
+		}
+
+		WindowEvent::KeyboardInput { device_id, event: KeyEvent { physical_key:PhysicalKey::Code(ArrowDown), text, state:Pressed, repeat:false, .. }, is_synthetic:false } => {
+			// In your update (e.g. about_to_wait or redraw):
+			
+			self.nmax-= 10;
+			println!("{:?}",self.nmax);
+			
+			self.window.as_ref().unwrap().request_redraw();
+		}
+
 		// every other kind of events gets no triggers.
 		_ => {}
 		}
@@ -119,7 +142,8 @@ impl ApplicationHandler for App {
 fn draw_mandelbrot(frame: &mut [u8],min_real: f64,
     max_real: f64,
     min_imaginary: f64,
-    max_imaginary: f64,){
+    max_imaginary: f64,
+	nmax:i32){
     
     for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
 
@@ -133,7 +157,7 @@ fn draw_mandelbrot(frame: &mut [u8],min_real: f64,
             let imaginary = max_imaginary - (y_pos as f64 / HEIGHT as f64) * (max_imaginary - min_imaginary);
             let c = Complex::new(real, imaginary);
             // On vérifie si le pixel appartient à mandelbrot
-            let inside = is_in_mandlebrot_monot(c, 30);
+            let inside = is_in_mandlebrot_monot(c, nmax);
             
             if inside == true{
                 pixel[0] = 0;
