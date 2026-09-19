@@ -17,7 +17,7 @@ min_real: f64,
 max_real: f64,
 min_imaginary: f64,
 max_imaginary: f64,
-nmax: i32,
+nmax: u32,
 }
  
 // The constructor of our App structure.

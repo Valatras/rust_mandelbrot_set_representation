@@ -9,7 +9,7 @@ pub fn is_in_mandelbrot(i: usize,
     max_real: f64,
     min_imaginary: f64,
     max_imaginary: f64,
-    nmax:i32) -> bool {
+    nmax:u32) -> bool {
     let x_pos = (i % width as usize) as f64;
     // we'll use / operator as the index grows in x. So Each row contains WIDTH pixels, and there are HEIGHT rows. 
     // We still want an f32 result as we want a ratio to multiply with 255 the color intensity.
