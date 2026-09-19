@@ -3,7 +3,7 @@ use rust_mandelbrot_set_representation::*;
 use std::sync::Arc;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-application::ApplicationHandler, event::{ElementState::Pressed, KeyEvent, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode::{ArrowDown, ArrowUp}, PhysicalKey}, window::Window,
+application::ApplicationHandler, event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window,
 };
   
 //initial size of my window
@@ -114,28 +114,22 @@ impl ApplicationHandler for App {
 			self.window.as_ref().unwrap().request_redraw();
 		}
 		
-		WindowEvent::KeyboardInput { device_id, event: KeyEvent { physical_key:PhysicalKey::Code(ArrowUp), text, state:Pressed, repeat:false, .. }, is_synthetic:false } => {
-			// In your update (e.g. about_to_wait or redraw):
-			
-			self.nmax+= 10;
-			println!("{:?}",self.nmax);
-			
-			self.window.as_ref().unwrap().request_redraw();
-		}
-
-		WindowEvent::KeyboardInput { device_id, event: KeyEvent { physical_key:PhysicalKey::Code(ArrowDown), text, state:Pressed, repeat:false, .. }, is_synthetic:false } => {
-			// In your update (e.g. about_to_wait or redraw):
-			
-			self.nmax-= 10;
-			println!("{:?}",self.nmax);
-			
-			self.window.as_ref().unwrap().request_redraw();
+		//for inputs comming from the keyboard.
+		WindowEvent::KeyboardInput {
+			event,
+			is_synthetic: false,
+			..
+		} => {
+			if event.state == ElementState::Pressed && !event.repeat {
+				self.handle_keyboard_input(event);
+			}
 		}
 
 		// every other kind of events gets no triggers.
 		_ => {}
 		}
 	}
+	
 }
 
 
@@ -173,6 +167,40 @@ fn draw_mandelbrot(frame: &mut [u8],min_real: f64,
 }
   
 
+
+// Creating the input handler.
+impl App {
+	fn handle_keyboard_input(&mut self, event: KeyEvent) {
+		match event.physical_key {
+			PhysicalKey::Code(KeyCode::ArrowUp) => {
+				if self.nmax < 30 {
+					self.nmax += 1;
+				} else {
+					self.nmax += 10;
+				}
+			}
+
+			PhysicalKey::Code(KeyCode::ArrowDown) => {
+				if self.nmax <= 30 {
+					if self.nmax > 0 {
+						self.nmax -= 1;
+					}
+				} else {
+					self.nmax -= 10;
+				}
+			}
+
+			_ => return,
+    }
+
+    self.window.as_ref().unwrap().request_redraw();
+}
+
+	
+}
+
+
+
 fn main() {
 // main loop that detects events for our window
 let event_loop = EventLoop::new().unwrap();
@@ -182,44 +210,3 @@ let mut app = App::new();
 // On a production code we won't do that. We'll propagate the error instead.
 event_loop.run_app(&mut app).unwrap();
 }
-
-// fn main(){
-//     let width = 1920;
-//     let height = 1080;
-//     let nmax = 100;
-
-
-//     // zone du domaine complexe à visualiser. 
-//     // Plus la zone est petite plus on regarde la fractale en profondeur
-//     // valeurs à comparer : 1.0, puis 2.0
-//     let min_real = -1.0;
-//     let max_real = 1.0;
-//     let min_imaginary = -1.0;
-//     let max_imaginary = 1.0;
-
-//     let mut image: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(width, height);
-
-//     for x in 0..width {
-//         for y in 0..height {
-
-//             // Transformation pixel -> plan complexe : position finale=début+pourcentage de progression×taille de l’intervalle
-//             let real = min_real + (x as f64 / width as f64) * (max_real - min_real);
-//             let imaginary = max_imaginary - (y as f64 / height as f64) * (max_imaginary - min_imaginary);
-            
-//             // création du nombre complexe c (représente un pixel dans le plan complexe à chaque fois)
-//             let c = Complex::new(real, imaginary);
-//             // On vérifie si le pixel appartient à mandelbrot
-//             let inside = is_in_mandlebrot_monot(c, nmax);
-            
-//             // on colorie le pixel si il est dedans.
-//             let pixel = if inside {
-//                 Rgb([0, 0, 0])
-//             } else {
-//                 Rgb([255, 255, 255])
-//             };
-
-//             image.put_pixel(x, y, pixel);
-//         }
-//     }
-//     image.save("mandelbrot4.png").unwrap();
-// }
