@@ -1,5 +1,4 @@
-use num_complex::Complex;
-use rust_mandelbrot_set_representation::*;
+use rust_mandelbrot_set_representation::is_in_mandelbrot;
 use std::sync::Arc;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
@@ -34,7 +33,7 @@ nmax: 30,
 }
 }}
   
-// A method (implementation in rust) that we create for our App
+// A method (implementation in rust) that we create for our App [A]
 impl ApplicationHandler for App {
 // resumed is an ApplicationHandler's method. Used to render
 // when a graphic app is created (desktop), or resumed back
@@ -82,13 +81,29 @@ impl ApplicationHandler for App {
 		WindowEvent::RedrawRequested => {
 		let pixels = self.pixels.as_mut().unwrap();
 		let frame = pixels.frame_mut();
-		draw_mandelbrot(frame,
-		self.min_real,
-        self.max_real,
-        self.min_imaginary,
-        self.max_imaginary,
-		self.nmax
-		);
+		for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+
+			let inside = is_in_mandelbrot(i,
+				WIDTH,
+				HEIGHT,
+				self.min_real,
+				self.max_real,
+				self.min_imaginary,
+				self.max_imaginary,
+				self.nmax
+			);
+		    if inside == true{
+                pixel[0] = 0; // Rouge
+                pixel[1] = 0; // Vert
+                pixel[2] = 0; // Bleu
+            }else {    
+                pixel[0] = 255; // Rouge
+                pixel[1] = 255; // Vert
+                pixel[2] = 255; // Bleu   
+            }
+            pixel[3] = 255; // Alpha
+
+		}
 		// now we draw the pixel buffers on the window
 		pixels.render().unwrap();
 		}
@@ -133,42 +148,8 @@ impl ApplicationHandler for App {
 }
 
 
-fn draw_mandelbrot(frame: &mut [u8],min_real: f64,
-    max_real: f64,
-    min_imaginary: f64,
-    max_imaginary: f64,
-	nmax:i32){
-    
-    for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
 
-            let x_pos = (i % WIDTH as usize) as f32;
-            // we'll use / operator as the index grows in x. So Each row contains WIDTH pixels, and there are HEIGHT rows. 
-            // We still want an f32 result as we want a ratio to multiply with 255 the color intensity.
-            let y_pos = (i / WIDTH as usize) as f32;
-            //pixel is a &mut [u8] variable. 
-            // Transformation pixel -> plan complexe : position finale=début+pourcentage de progression×taille de l’intervalle
-            let real = min_real + (x_pos as f64 / WIDTH as f64) * (max_real - min_real);
-            let imaginary = max_imaginary - (y_pos as f64 / HEIGHT as f64) * (max_imaginary - min_imaginary);
-            let c = Complex::new(real, imaginary);
-            // On vérifie si le pixel appartient à mandelbrot
-            let inside = is_in_mandlebrot_monot(c, nmax);
-            
-            if inside == true{
-                pixel[0] = 0;
-                pixel[1] = 0; // Vert
-                pixel[2] = 0; // Bleu
-            }else {    
-                pixel[0] = 255;
-                pixel[1] = 255; // Vert
-                pixel[2] = 255; // Bleu   
-            }
-            pixel[3] = 255; // Alpha
-		}
-}
-  
-
-
-// Creating the input handler.
+// Creating the input handler. [A]
 impl App {
 	fn handle_keyboard_input(&mut self, event: KeyEvent) {
 		match event.physical_key {
