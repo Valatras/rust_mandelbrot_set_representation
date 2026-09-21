@@ -9,7 +9,7 @@ pub fn is_in_mandelbrot(i: usize,
     max_real: f64,
     min_imaginary: f64,
     max_imaginary: f64,
-    nmax:u32) -> bool {
+    nmax:u32) -> (bool, f64) {
     let x_pos = (i % width as usize) as f64;
     // we'll use / operator as the index grows in x. So Each row contains WIDTH pixels, and there are HEIGHT rows. 
     // We still want an f32 result as we want a ratio to multiply with 255 the color intensity.
@@ -25,16 +25,16 @@ pub fn is_in_mandelbrot(i: usize,
     // Création d'un nombre complexe par un complexe z initial 
     // et un nombre complexe c représentant un pixel
     let mut z = Complex::new(0.0,0.0);
-    for _n in 1..=nmax{
+    for n in 1..=nmax{
         //équation de mandelbrot
         z = z * z + c;
 
         //condition pour dire que le point diverge
         if z.norm() > 2.0 {
-            return false;
+            return (false, n as f64 / nmax as f64 );
         }
     }
 
-    return true;
+    return (true, 1.0);
 }
 

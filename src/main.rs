@@ -1,5 +1,6 @@
 use rust_mandelbrot_set_representation::is_in_mandelbrot;
 use std::sync::Arc;
+use std::thread;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
 application::ApplicationHandler, event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window,
@@ -8,6 +9,8 @@ application::ApplicationHandler, event::{ElementState, KeyEvent, MouseScrollDelt
 //initial size of my window
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 600;
+// Nombre de threads que nous voulons utiliser.
+const THREAD_COUNT: usize = 8;
   
 struct App {
 // here I create a window. The Arc option allows multiple accessing for ... ?
@@ -25,9 +28,9 @@ impl App {fn new() -> Self {
 Self {
 window: None,
 pixels: None,
-min_real: -3.0,
-max_real: 3.0,
-min_imaginary: -2.0,
+min_real: -2.0,
+max_real: 2.8,
+min_imaginary: -2.4,
 max_imaginary: 2.0,
 nmax: 30,
 }
@@ -80,33 +83,155 @@ impl ApplicationHandler for App {
 		
 		WindowEvent::RedrawRequested => {
 		let pixels = self.pixels.as_mut().unwrap();
-		let frame = pixels.frame_mut();
-		for (i, pixel) in frame.chunks_exact_mut(4).enumerate() {
+                let frame = pixels.frame_mut();
 
-			let inside = is_in_mandelbrot(i,
-				WIDTH,
-				HEIGHT,
-				self.min_real,
-				self.max_real,
-				self.min_imaginary,
-				self.max_imaginary,
-				self.nmax
-			);
-		    if inside == true{
-                pixel[0] = 0; // Rouge
-                pixel[1] = 0; // Vert
-                pixel[2] = 0; // Bleu
-            }else {    
-                pixel[0] = 255; // Rouge
-                pixel[1] = 255; // Vert
-                pixel[2] = 255; // Bleu   
+                /*
+                 * IMPORTANT :
+                 *
+                 * On récupère les paramètres avant de créer les threads.
+                 *
+                 * Nous ne voulons surtout pas donner `self` aux threads.
+                 * Ces valeurs sont des types simples (f64/i32) et sont donc
+                 * copiées dans chaque thread grâce à `move`.
+                 */
+                let min_real = self.min_real;
+                let max_real = self.max_real;
+                let min_imaginary = self.min_imaginary;
+                let max_imaginary = self.max_imaginary;
+                let nmax = self.nmax;
+
+                /*
+                 * Le framebuffer contient des OCTETS.
+                 *
+                 * 800 × 600 pixels
+                 * × 4 octets par pixel
+                 * = 1 920 000 octets
+                 *
+                 * Avec 4 threads :
+                 * 1 920 000 / 4 = 480 000 octets par thread.
+                 */
+                let chunk_size = frame.len() / THREAD_COUNT;
+
+                let mut handles = Vec::new();
+
+                /*
+                 * Nous créons quatre threads.
+                 *
+                 * Chaque thread reçoit une plage de pixels et construit
+                 * son propre Vec<u8>.
+                 *
+                 * Cela évite de faire modifier `frame` directement par
+                 * plusieurs threads.
+                 */
+                for thread_id in 0..THREAD_COUNT {
+                    let start_byte = thread_id * chunk_size;
+
+                    let end_byte = if thread_id == THREAD_COUNT - 1 {
+                        frame.len()
+                    } else {
+                        start_byte + chunk_size
+                    };
+
+                    // Nombre de bytes dans cette partition.
+                    let current_chunk_size = end_byte - start_byte;
+
+                    /*
+                     * Le thread ne retourne pas simplement "rien".
+                     *
+                     * Il va retourner son buffer :
+                     *
+                     *     Vec<u8>
+                     *
+                     * Le JoinHandle aura donc le type :
+                     *
+                     *     JoinHandle<Vec<u8>>
+                     */
+                    let handle = thread::spawn(move || {
+                        // Buffer appartenant exclusivement à ce thread.
+                        let mut result = vec![0u8; current_chunk_size];
+
+                        /*
+                         * On parcourt les pixels de NOTRE partition.
+                         *
+                         * Chaque pixel = 4 bytes RGBA.
+                         */
+                        for (local_pixel_index, pixel) in
+                            result.chunks_exact_mut(4).enumerate()
+                        {
+                            /*
+                             * local_pixel_index commence à 0 pour chaque thread.
+                             *
+                             * Il faut donc retrouver l'index GLOBAL du pixel
+                             * dans l'image.
+                             */
+                            let global_pixel_index =
+                                (start_byte / 4) + local_pixel_index;
+
+                            let inside = is_in_mandelbrot(
+                                global_pixel_index,
+                                WIDTH,
+                                HEIGHT,
+                                min_real,
+                                max_real,
+                                min_imaginary,
+                                max_imaginary,
+                                nmax,
+                            );
+
+                            if inside.0 {
+                                pixel[0] = 0;
+                                pixel[1] = 0;
+                                pixel[2] = 0;
+                            } else {
+                                // Juste pour changer un peu la couleur selon le nombre d'itération. 
+                                pixel[0] = (255.0 * inside.1) as u8;
+                                pixel[1] = 255;
+                                pixel[2] = 255;
+                            }
+
+                            pixel[3] = 255;
+                        }
+
+                        /*
+                         * Cette valeur sera récupérée par `join()`.
+                         */
+                        result
+                    });
+
+                    /*
+                     * On conserve le handle.
+                     *
+                     * Si on faisait immédiatement `handle.join()`,
+                     * on attendrait le thread avant de créer le suivant,
+                     * ce qui supprimerait pratiquement tout le parallélisme.
+                     */
+                    handles.push(handle);
+                }
+
+                /*
+                 * Maintenant que les 4 threads ont été lancés,
+                 * on attend leurs résultats.
+                 */
+                for (thread_id, handle) in handles.into_iter().enumerate() {
+                    let result = handle
+                        .join()
+                        .expect("A worker thread panicked");
+
+                    /*
+                     * Le thread principal récupère le Vec<u8>
+                     * et le copie dans la bonne partie du framebuffer.
+                     */
+                    let start_byte = thread_id * chunk_size;
+
+                    let end_byte = start_byte + result.len();
+
+                    frame[start_byte..end_byte].copy_from_slice(&result);
+                }
+
+                // Une fois tous les threads terminés, l'image est complète.
+                pixels.render().unwrap();
             }
-            pixel[3] = 255; // Alpha
-
-		}
-		// now we draw the pixel buffers on the window
-		pixels.render().unwrap();
-		}
+		
 
 		WindowEvent::MouseWheel { delta, .. } => {
 			let zoom_factor = match delta {
