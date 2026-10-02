@@ -3,9 +3,9 @@ use std::sync::Arc;
 use std::thread;
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-application::ApplicationHandler, event::{ElementState, KeyEvent, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window,
+application::ApplicationHandler, event::{ElementState::self, KeyEvent, MouseButton::Left, MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, keyboard::{KeyCode, PhysicalKey}, window::Window,
 };
-  
+
 //initial size of my window
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 600;
@@ -21,6 +21,11 @@ max_real: f64,
 min_imaginary: f64,
 max_imaginary: f64,
 nmax: u32,
+// state if we are holding the left mouse bouton.
+dragging_lm: bool,
+
+// last mouse position in the complexe plan.
+last_mouse_position: Option<(f64, f64)>,
 }
  
 // The constructor of our App structure.
@@ -33,6 +38,8 @@ max_real: 2.8,
 min_imaginary: -2.4,
 max_imaginary: 2.0,
 nmax: 30,
+dragging_lm: false,
+last_mouse_position: None,
 }
 }}
   
@@ -184,7 +191,7 @@ impl ApplicationHandler for App {
                                 pixel[2] = 0;
                             } else {
                                 // Juste pour changer un peu la couleur selon le nombre d'itération. 
-                                pixel[0] = (255.0 * inside.1) as u8;
+                                pixel[0] = (255.0 - 255.0 * inside.1) as u8;
                                 pixel[1] = 255;
                                 pixel[2] = 255;
                             }
@@ -253,6 +260,58 @@ impl ApplicationHandler for App {
 
 			self.window.as_ref().unwrap().request_redraw();
 		}
+
+        WindowEvent::MouseInput {
+    state: ElementState::Pressed,
+    button: Left,
+    ..
+} => {
+    self.dragging_lm = true;
+}
+
+WindowEvent::MouseInput {
+    state: ElementState::Released,
+    button: Left,
+    ..
+} => {
+    self.dragging_lm = false;
+    self.last_mouse_position = None;
+}
+
+WindowEvent::CursorMoved { position, .. } => {
+    let current_x = position.x;
+    let current_y = position.y;
+
+    if self.dragging_lm {
+        if let Some((last_x, last_y)) = self.last_mouse_position {
+            let dx = current_x - last_x;
+            let dy = current_y - last_y;
+
+            let complex_width = self.max_real - self.min_real;
+            let complex_height =
+                self.max_imaginary - self.min_imaginary;
+
+            let real_per_pixel =
+                complex_width / WIDTH as f64;
+
+            let imag_per_pixel =
+                complex_height / HEIGHT as f64;
+
+            let real_shift = dx * real_per_pixel;
+            let imag_shift = dy * imag_per_pixel;
+
+            self.min_real -= real_shift;
+            self.max_real -= real_shift;
+
+            self.min_imaginary += imag_shift;
+            self.max_imaginary += imag_shift;
+
+            self.window.as_ref().unwrap().request_redraw();
+        }
+    }
+
+    self.last_mouse_position = Some((current_x, current_y));
+}
 		
 		//for inputs comming from the keyboard.
 		WindowEvent::KeyboardInput {
