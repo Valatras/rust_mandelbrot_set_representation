@@ -1,6 +1,6 @@
 # Rust Mandelbrot Set
 
-An early-release Rust project for exploring the Mandelbrot set and learning Rust along the way. The main application renders the fractal in an interactive desktop window; the repository also contains small, runnable exercises covering Rust fundamentals and concurrency.
+This is a Rust project for exploring the Mandelbrot set and learning Rust along the way. The main application renders the fractal in an interactive desktop window; the repository also contains small, runnable exercises covering Rust fundamentals and concurrency.
 
 ## The Mandelbrot application
 
